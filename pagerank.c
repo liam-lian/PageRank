@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define THRESHOLD 1
+#include<math.h> 
+
+#define THRESHOLD 0.1
 
 /*
 	使用了改进的ELL方式进行矩阵的存储。
@@ -53,19 +55,22 @@ void printpair(directpair pair){
 void printArr(double*cc,int len ){
 	for (int i = 0; i < len; ++i)
 	{
-		printf("%lf ",cc[i]);
+		printf("%lf\n",cc[i]);
+		printf("%d\n",i);
 	}
-	printf("\n");
+	printf("\n###\n");
 }
 
 
 //二维数组可以转化为一维数组传入。因为数组是连续存储的
-int compArr(double* arr,int len){
+int compArr(double* arr1,double* arr2,int len){
+	
+
 	int i=0;
-	for (i = 0; i < len; ++i){
-		if(arr[i]-arr[len+i]>THRESHOLD || arr[len+i]-arr[i]>THRESHOLD){
+	for (int i = 0; i < len; ++i)
+	{
+		if(fabs(arr1[i]-arr2[i])>THRESHOLD)
 			return 1;
-		}
 	}
 	return 0;
 }
@@ -76,7 +81,7 @@ int main(){
 	//矩阵的维度
 	int MaxtrixSize=7;
 	//阻尼系数	
-	double alpha=0.15;
+	double alpha=0.015;
     //稀疏矩阵定义
 	MatrixNode* matrix[MaxtrixSize];
 	MatrixNode* tailVector[MaxtrixSize];
@@ -104,7 +109,8 @@ int main(){
 	}
 
 	//循环计算
-	while(!feof(fp)){
+	while(1){
+		memset(strLine,0,100);
 
 		fgets(strLine,100,fp);
 		getDirect(strLine);
@@ -118,7 +124,9 @@ int main(){
 			for (i = 0; i < index; ++i){
 				MatrixNode *newNode=(MatrixNode*)malloc(sizeof(MatrixNode));
 				newNode->row=prePair.i;
-				newNode->val=1.0/index * (1.0-alpha); //增加修正的权值
+				
+			 	// newNode->val=1.0/index * (1.0-alpha); //增加修正的权值
+				newNode->val=1.0/index; //增加修正的权值
 				newNode->next=NULL;
 				tailVector[from_prei_to[i]]->next=newNode;
 				tailVector[from_prei_to[i]]=newNode;
@@ -126,6 +134,11 @@ int main(){
 			index=0;
 			prePair.i=pair.i;
 			from_prei_to[index++]=pair.j;
+		}
+
+		//solve the last line read two times
+		if(feof(fp)){
+			break;
 		}
 	}
 
@@ -148,51 +161,59 @@ int main(){
 	for (i = 0; i < MaxtrixSize; ++i){
 		MatrixNode *node=matrix[i]->next;
 		while(node){
-			Array_i_[0][i]++;
+			Array_i_[Array_i_flag][i]++;
 			node=node->next;
 		}
-		edgecount+=Array_i_[0][i];
+		edgecount+=Array_i_[Array_i_flag][i];
 	}
 	for (i = 0; i < MaxtrixSize; ++i){
-		Array_i_[0][i]/=edgecount;
-		printf("%lf ", Array_i_[0][i]);
+		Array_i_[Array_i_flag][i]/=edgecount;
+		printf("%lf\n", Array_i_[Array_i_flag][i]);
 	}
+
+	printf("init value end\n");
+
 
 
 	int running=1;
 
 	while(running){
 
-
 		int Array_i_Sum=0;
+		//sum of array
 		for (i = 0; i <MaxtrixSize; ++i){
-			Array_i_Sum+=Array_i_[Array_i_flag];
+			Array_i_Sum+=Array_i_[Array_i_flag][i];
 		}
 
-		//计算了一次矩阵乘法
+		//calculate v(i+1)
+		int index_I_1=(Array_i_flag+1)%2;
+		memset(Array_i_[index_I_1],0,MaxtrixSize);
+
 		for (i = 0; i < MaxtrixSize; ++i){
 			MatrixNode *node=matrix[i]->next;
-			int index_I_1=(Array_i_flag+1)%2;
 
 			while(node){
-				printf("d\n");
 				Array_i_[index_I_1][i] += node->val* Array_i_[Array_i_flag][node->row];
 				node=node->next;
 			}
-			printf("dd\n");
 			//调整修正
-			Array_i_[index_I_1][i]+=alpha*Array_i_Sum;	
+			 // Array_i_[index_I_1][i]+=alpha*Array_i_Sum/MaxtrixSize;	
 		}
 
-		printf("oooooooooooo\n");
-		running=compArr((double*)Array_i_,MaxtrixSize);
-		printf("asdasd\n");
+		printf("==\n");
+		for (int i = 0; i < 2; ++i){
+			for (int j = 0; j < MaxtrixSize; ++j){
+				printf("%.4lf\n",Array_i_[i][j]);
+			}
+			printf("\n");
+		}
+	    running=compArr(Array_i_[0],Array_i_[1],MaxtrixSize);
 		Array_i_flag=(Array_i_flag+1)%2;
-		printArr(Array_i_[Array_i_flag],MaxtrixSize);
 	}
 
-	for (int i = 0; i < MaxtrixSize; ++i)
+	for (i = 0; i < MaxtrixSize; ++i)
 	{
-		printf("%s ",Array_i_[(Array_i_flag+1)%2][i]);
+		printf("%lf ",Array_i_[(Array_i_flag+1)%2][i]);
 	}
+	printf("\n");
 }
