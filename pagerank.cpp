@@ -3,7 +3,9 @@
 
 #include<math.h> 
 #include<string.h>
+#include<map>
 
+using namespace std; 
 #define THRESHOLD 0.15
 
 /*
@@ -12,11 +14,7 @@
 	每一行使用一个链表连接起来，将属于改行的全部数据放在链表中。
 	链表节点存储数据内容以及在本行中的列
 */
-typedef struct Respair
-{
-	double val;
-	int index;
-}Respair;
+
 //稀疏矩阵中的元素
 //使用链表链接起来
 typedef struct MatrixNode{
@@ -29,7 +27,13 @@ typedef struct directpair{
 	int i,j;
 }directpair;
 
-directpair pair;
+typedef struct Respair
+{
+	double val;
+	int index;
+}Respair;
+
+directpair Pagepair;
 int getDirect(char *Line){
 	char *line=Line;
 	int i=0,j=0;
@@ -47,26 +51,39 @@ int getDirect(char *Line){
 		}
 		line++;
 	}
-	pair.i=i;
-	pair.j=j;
-	// free(Line);
+	Pagepair.i=i;
+	Pagepair.j=j;
 	return 1;
 }
-
-void printpair(directpair pair){
-	printf("%d %d\n",pair.i,pair.j);
-}
-void printArr(double*cc,int len ){
-	for (int i = 0; i < len; ++i)
-	{
-		printf("%lf\n",cc[i]);
-		printf("%d\n",i);
+map<int,char*> urlMap;
+void saveurl(char *Line){
+	char * line=Line;
+	int No=0;
+	char * url=(char*)malloc(200);
+	char * purl=url;
+	while(*line!=' '){
+		*purl++=*line++;
 	}
-	printf("\n###\n");
+	*purl='\0';
+	while(*line++){
+		if(*line>='0' && *line<='9')
+			No=No*10+(*line-'0');
+	}
+	urlMap[No]=url;
 }
 
 
-//二维数组可以转化为一维数组传入。因为数组是连续存储的
+char* geturl(int No){
+
+	map<int,char*>::iterator it;
+	it=urlMap.find(No);
+    if(it!=urlMap.end()){
+    	return it->second;
+    }
+    return NULL;
+}
+
+
 int compArr(double* arr1,double* arr2,int len){
 	
 
@@ -85,16 +102,23 @@ int cmp(const void * a, const void * b)
      return ((Respair*)b)->val-((Respair*)a)->val>0?1:-1;
 }
 
-int main(){
+//pagerank url.txt top10.txt
+int main(int argc, char *argv[]){
 
+    if(argc<3){
+    	printf("the arg nuumber is too less\n");
+    }
+ 	FILE* fp=fopen(argv[1],"r");
+ 	FILE* fpOut=fopen(argv[2],"w");
 
-
-
-	FILE* fp=fopen("../spider/tmp","r");
+ 	if(fp==NULL || fpOut==NULL){
+ 		printf("can not find some file\n");
+ 		return -1;
+ 	}
 
 	int i,j;
 	//矩阵的初始维度，设置一个足够大的值，确保矩阵不会越界
-	int MaxtrixSize=40*10000;
+	int MaxtrixSize=50*10000;
 	//矩阵的实际维度,在读入数据的过程中，找到最大的编号值，作为矩阵的实际维度
 	int MatrixRealSize=-1;
 
@@ -103,6 +127,7 @@ int main(){
     //稀疏矩阵定义
 	MatrixNode* matrix[MaxtrixSize];
 	MatrixNode* tailVector[MaxtrixSize];
+	
 
 	//初始化稀疏矩阵
 	for (int i = 0; i < MaxtrixSize; ++i){
@@ -111,41 +136,52 @@ int main(){
 	}
 
 	//记录i出发指向的所有的页面编号
-	int from_prei_to[MaxtrixSize];
+	// int from_prei_to[MaxtrixSize];
+
+	int *from_prei_to=(int *)malloc(sizeof(int)*MaxtrixSize);
+
+
 	//from_prei_to 的长度
 	int index=0;
 
 	directpair prePair;
 	
-	char strLine[100];
+	char strLine[200];
+
+	while(1){
+		fgets(strLine,200,fp);
+		if(strLine[0]=='\n')
+			break;
+		saveurl(strLine);
+	}
+	
+
     //读取矩阵第一行
 	if(!feof(fp)){ 
 		fgets(strLine,100,fp);
 		getDirect(strLine);
-		prePair.i=pair.i;
-		from_prei_to[index++]=pair.j;
-		if(MatrixRealSize<pair.j){
-			MatrixRealSize=pair.j;
+		prePair.i=Pagepair.i;
+		from_prei_to[index++]=Pagepair.j;
+		if(MatrixRealSize<Pagepair.j){
+			MatrixRealSize=Pagepair.j;
 		}
 	}
 
 	int ii=0;
 	//循环计算
 	while(1){
-		// printf("%d\n",ii++);
+		
 		memset(strLine,0,100);
 
 		fgets(strLine,100,fp);
-		// if(strLine[0]=='\n')
-		// 	break;
 		getDirect(strLine);
 
-		if(MatrixRealSize<pair.j){
-			MatrixRealSize=pair.j;
+		if(MatrixRealSize<Pagepair.j){
+			MatrixRealSize=Pagepair.j;
 		}
 
-		if(prePair.i==pair.i){
-			from_prei_to[index++]=pair.j;
+		if(prePair.i==Pagepair.i){
+			from_prei_to[index++]=Pagepair.j;
 		}
 		else{
 			for (i = 0; i < index; ++i){
@@ -158,14 +194,14 @@ int main(){
 				tailVector[from_prei_to[i]]=newNode;
 			}
 			index=0;
-			prePair.i=pair.i;
-			from_prei_to[index++]=pair.j;
+			prePair.i=Pagepair.i;
+			from_prei_to[index++]=Pagepair.j;
 		}
 
 		//solve the last line read two times
 		if(feof(fp)){
-			if(MatrixRealSize<pair.i){
-				MatrixRealSize=pair.i;
+			if(MatrixRealSize<Pagepair.i){
+				MatrixRealSize=Pagepair.i;
 			}
 			break;
 		}
@@ -173,29 +209,13 @@ int main(){
 
 	MatrixRealSize++;
 
-	printf("%d\n",MatrixRealSize);
-	//打印结果，至此矩阵构造完毕
-	// for (int i = 0; i < MaxtrixSize; ++i){
-	// 	MatrixNode *node=matrix[i]->next;
-	// 	while(node){
-	// 		printf("[%d--%d--%lf]\n",i,node->row,node->val);
-	// 		node=node->next;
-	// 	}
-	// }
-
     //二维数组指代的是ri和ri+1,两者所代表的内容，交替的进行这变化，这样做可以避免内存拷贝的损耗。
 	//使用一个flag标志ri
 
-	printf("dd");
 	double* Array_i_=(double*)malloc(MatrixRealSize*2*sizeof(double));
-
 	int Array_i_flag=0;
 
-	printf("12");
 	//初始值，计算向量的入度以及总的边的个数
-
-
-
 	int edgecount=0;
 	for (i = 0; i < MatrixRealSize; ++i){
 		MatrixNode *node=matrix[i]->next;
@@ -207,10 +227,7 @@ int main(){
 	}
 	for (i = 0; i < MatrixRealSize; ++i){
 		Array_i_[Array_i_flag*MatrixRealSize+i]/=edgecount;
-		//printf("%lf\n", Array_i_[Array_i_flag][i]);
 	}
-
-	printf("init value end\n");
 
 	int running=1;
 
@@ -250,8 +267,15 @@ int main(){
 	}
 	qsort(calres,MatrixRealSize,sizeof(Respair),cmp);
 
-	for (i = 0; i < 20; ++i)
-	{
-		printf("%lf--%d\n",calres[i].val,calres[i].index);
+
+	char *url;
+	int count=0;
+	i=0;
+	while(count<10){
+		if(url=geturl(calres[i].index)){
+			fprintf(fpOut,"%s %lf\n",url,calres[i].val);
+			count++;
+		}	
+		i++;
 	}
 }

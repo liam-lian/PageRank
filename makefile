@@ -1,2 +1,3 @@
-pagerank.o:pagerank.c
-	gcc pagerank.c -o pagerank
+pagerank.o:pagerank.cpp
+	g++ pagerank.cpp -o pagerank
+
